@@ -19,6 +19,11 @@ async function signOut() {
   redirect('/')
 }
 
+function formatCount(n: number | undefined | null) {
+  if (typeof n !== 'number' || Number.isNaN(n)) return '—'
+  return n.toLocaleString('en-US')
+}
+
 export default async function LandingPage() {
   const supabase = await createClient()
   const {
@@ -34,6 +39,22 @@ export default async function LandingPage() {
       .single()
     displayName = profile?.full_name || user.email?.split('@')[0] || 'Account'
   }
+
+  // Real counts from the database (aggregate numbers only, via get_public_stats()).
+  const { data: statsData } = await supabase.rpc('get_public_stats')
+  const s = (statsData ?? null) as {
+    resources?: number
+    organizations?: number
+    verified_users?: number
+    bookings?: number
+  } | null
+
+  const stats = [
+    { value: formatCount(s?.resources), label: 'Resources Listed' },
+    { value: formatCount(s?.organizations), label: 'Partner Institutions' },
+    { value: formatCount(s?.verified_users), label: 'Verified Members' },
+    { value: formatCount(s?.bookings), label: 'Bookings Made' },
+  ]
 
   return (
     <div className="min-h-screen bg-white">
@@ -81,7 +102,7 @@ export default async function LandingPage() {
         <div className="max-w-7xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 text-sm font-medium px-4 py-1.5 rounded-full mb-8">
             <Star className="h-3.5 w-3.5 fill-blue-600" />
-            Trusted by 50+ institutions
+            Built for labs, makerspaces and colleges
           </div>
           <h1 className="text-6xl font-extrabold text-gray-900 leading-tight mb-6">
             Book the tools{' '}
@@ -111,16 +132,11 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* Stats */}
+      {/* Stats (real numbers from the database) */}
       <section className="py-16 bg-gray-50 border-y border-gray-100">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            {[
-              { value: '2,400+', label: 'Resources Listed' },
-              { value: '180+', label: 'Partner Institutions' },
-              { value: '94%', label: 'Fair Allocation Rate' },
-              { value: '12,000+', label: 'Bookings This Month' },
-            ].map((stat) => (
+            {stats.map((stat) => (
               <div key={stat.label}>
                 <div className="text-4xl font-extrabold text-blue-600 mb-1">{stat.value}</div>
                 <div className="text-sm text-gray-500">{stat.label}</div>
@@ -157,7 +173,7 @@ export default async function LandingPage() {
                 icon: <ClipboardCheck className="h-6 w-6 text-violet-600" />,
                 title: 'Full Audit Trail',
                 description:
-                  'Every action — booking, approval, check-in, condition report, incident — is immutably logged with actor, timestamp, and reason for complete accountability.',
+                  'Every action — booking, approval, check-in, condition report, incident — is logged with actor, timestamp, and reason for complete accountability.',
               },
             ].map((feature) => (
               <div
@@ -226,7 +242,7 @@ export default async function LandingPage() {
           <Users className="h-12 w-12 text-blue-600 mx-auto mb-6" />
           <h2 className="text-4xl font-bold text-gray-900 mb-4">Ready to share smarter?</h2>
           <p className="text-lg text-gray-500 mb-8">
-            Join hundreds of institutions already using LabShare to manage their equipment fairly and efficiently.
+            Create an account, get verified, and start booking shared lab equipment fairly and efficiently.
           </p>
           <div className="flex items-center justify-center gap-4">
             <Link
