@@ -109,3 +109,6 @@ The project's license and usage permissions should be confirmed by the project t
 
 **Built for Code Hack India**  
 *Making resource sharing smarter, more accessible, and more sustainable.*
+
+### Development Update
+LabShare development is ongoing.
