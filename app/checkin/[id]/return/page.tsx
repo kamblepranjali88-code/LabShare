@@ -27,7 +27,7 @@ export default function ReturnPage() {
         .select(`
           *, 
           resource:resources(name, location),
-          user:profiles(full_name, email),
+          user:profiles!user_id(full_name, email),
           condition_reports(*)
         `)
         .eq('id', id)

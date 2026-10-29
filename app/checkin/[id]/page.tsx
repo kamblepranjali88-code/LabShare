@@ -24,7 +24,7 @@ export default function CheckInPage() {
       const supabase = createClient()
       const { data } = await supabase
         .from('bookings')
-        .select('*, resource:resources(name, location), user:profiles(full_name, email)')
+        .select('*, resource:resources(name, location), user:profiles!user_id(full_name, email)')
         .eq('id', id)
         .single()
       setBooking(data)

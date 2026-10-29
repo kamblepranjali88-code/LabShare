@@ -1,14 +1,11 @@
--- ============================================================
--- LabShare Seed Data
--- Organization: Apex Engineering College
--- ============================================================
--- All UUIDs are hardcoded for deterministic, repeatable seeding.
--- Run this after all migrations have been applied.
--- ============================================================
+begin;
 
 -- ============================================================
--- 1. ORGANIZATION
+-- LabShare Seed Data - Apex Engineering College
+-- DRY RUN: ends with rollback. Change the last line to commit; once it passes.
 -- ============================================================
+
+-- 1. ORGANIZATION
 insert into organizations (id, name, type, domain, address, website, verified)
 values (
   'aaaaaaaa-0000-0000-0000-000000000001',
@@ -20,212 +17,87 @@ values (
   true
 );
 
--- ============================================================
--- 2. AUTH USERS  (bypasses the handle_new_user trigger;
---    profiles are inserted manually below so we control role/status)
--- ============================================================
-
--- admin@apex.edu
+-- 2. AUTH USERS
+-- The on_auth_user_created trigger creates a pending 'user' profile for each;
+-- the profiles upsert in section 3 then sets the real role/org/status.
+-- (role in the metadata below is ignored by handle_new_user.)
 insert into auth.users (
   id, instance_id, aud, role, email, encrypted_password,
   email_confirmed_at, created_at, updated_at,
   raw_user_meta_data, raw_app_meta_data, is_super_admin,
   confirmation_token, recovery_token, email_change_token_new, email_change
-) values (
-  'aaaaaaaa-1111-0000-0000-000000000001',
-  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-  'admin@apex.edu', crypt('Password123!', gen_salt('bf')),
+)
+select
+  v.id::uuid,
+  '00000000-0000-0000-0000-000000000000'::uuid, 'authenticated', 'authenticated',
+  v.email, crypt('MyDemo#2026x', gen_salt('bf')),
   now(), now(), now(),
-  '{"full_name": "System Admin", "role": "admin"}'::jsonb,
+  jsonb_build_object('full_name', v.full_name),
   '{"provider": "email", "providers": ["email"]}'::jsonb,
   false, '', '', '', ''
-);
+from (values
+  ('aaaaaaaa-1111-0000-0000-000000000001', 'admin@apex.edu',      'System Admin'),
+  ('aaaaaaaa-1111-0000-0000-000000000002', 'owner1@apex.edu',     'Dr. Rajan Mehta'),
+  ('aaaaaaaa-1111-0000-0000-000000000003', 'owner2@apex.edu',     'Prof. Sunita Rao'),
+  ('aaaaaaaa-1111-0000-0000-000000000004', 'manager@apex.edu',    'Karan Verma'),
+  ('aaaaaaaa-1111-0000-0000-000000000005', 'alice@apex.edu',      'Alice Sharma'),
+  ('aaaaaaaa-1111-0000-0000-000000000006', 'bob@apex.edu',        'Bob Nair'),
+  ('aaaaaaaa-1111-0000-0000-000000000007', 'carol@apex.edu',      'Carol Patel'),
+  ('aaaaaaaa-1111-0000-0000-000000000008', 'dave@apex.edu',       'Dave Kulkarni'),
+  ('aaaaaaaa-1111-0000-0000-000000000009', 'startup@nexalab.io',  'Nexa Lab')
+) as v(id, email, full_name);
 
--- owner1@apex.edu  (Lab Equipment Owner)
-insert into auth.users (
-  id, instance_id, aud, role, email, encrypted_password,
-  email_confirmed_at, created_at, updated_at,
-  raw_user_meta_data, raw_app_meta_data, is_super_admin,
-  confirmation_token, recovery_token, email_change_token_new, email_change
-) values (
-  'aaaaaaaa-1111-0000-0000-000000000002',
-  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-  'owner1@apex.edu', crypt('Password123!', gen_salt('bf')),
-  now(), now(), now(),
-  '{"full_name": "Dr. Rajan Mehta", "role": "owner"}'::jsonb,
-  '{"provider": "email", "providers": ["email"]}'::jsonb,
-  false, '', '', '', ''
-);
+-- 2b. LOGIN IDENTITIES (needed for email+password sign-in)
+insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+select gen_random_uuid(), u.id, u.id::text,
+  jsonb_build_object('sub', u.id::text, 'email', u.email, 'email_verified', true),
+  'email', now(), now(), now()
+from auth.users u
+where u.email like '%@apex.edu' or u.email = 'startup@nexalab.io';
 
--- owner2@apex.edu  (Digital Fab Lab Owner)
-insert into auth.users (
-  id, instance_id, aud, role, email, encrypted_password,
-  email_confirmed_at, created_at, updated_at,
-  raw_user_meta_data, raw_app_meta_data, is_super_admin,
-  confirmation_token, recovery_token, email_change_token_new, email_change
-) values (
-  'aaaaaaaa-1111-0000-0000-000000000003',
-  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-  'owner2@apex.edu', crypt('Password123!', gen_salt('bf')),
-  now(), now(), now(),
-  '{"full_name": "Prof. Sunita Rao", "role": "owner"}'::jsonb,
-  '{"provider": "email", "providers": ["email"]}'::jsonb,
-  false, '', '', '', ''
-);
-
--- manager@apex.edu
-insert into auth.users (
-  id, instance_id, aud, role, email, encrypted_password,
-  email_confirmed_at, created_at, updated_at,
-  raw_user_meta_data, raw_app_meta_data, is_super_admin,
-  confirmation_token, recovery_token, email_change_token_new, email_change
-) values (
-  'aaaaaaaa-1111-0000-0000-000000000004',
-  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-  'manager@apex.edu', crypt('Password123!', gen_salt('bf')),
-  now(), now(), now(),
-  '{"full_name": "Karan Verma", "role": "manager"}'::jsonb,
-  '{"provider": "email", "providers": ["email"]}'::jsonb,
-  false, '', '', '', ''
-);
-
--- alice@apex.edu  (student)
-insert into auth.users (
-  id, instance_id, aud, role, email, encrypted_password,
-  email_confirmed_at, created_at, updated_at,
-  raw_user_meta_data, raw_app_meta_data, is_super_admin,
-  confirmation_token, recovery_token, email_change_token_new, email_change
-) values (
-  'aaaaaaaa-1111-0000-0000-000000000005',
-  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-  'alice@apex.edu', crypt('Password123!', gen_salt('bf')),
-  now(), now(), now(),
-  '{"full_name": "Alice Sharma", "role": "user"}'::jsonb,
-  '{"provider": "email", "providers": ["email"]}'::jsonb,
-  false, '', '', '', ''
-);
-
--- bob@apex.edu  (student)
-insert into auth.users (
-  id, instance_id, aud, role, email, encrypted_password,
-  email_confirmed_at, created_at, updated_at,
-  raw_user_meta_data, raw_app_meta_data, is_super_admin,
-  confirmation_token, recovery_token, email_change_token_new, email_change
-) values (
-  'aaaaaaaa-1111-0000-0000-000000000006',
-  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-  'bob@apex.edu', crypt('Password123!', gen_salt('bf')),
-  now(), now(), now(),
-  '{"full_name": "Bob Nair", "role": "user"}'::jsonb,
-  '{"provider": "email", "providers": ["email"]}'::jsonb,
-  false, '', '', '', ''
-);
-
--- carol@apex.edu  (student)
-insert into auth.users (
-  id, instance_id, aud, role, email, encrypted_password,
-  email_confirmed_at, created_at, updated_at,
-  raw_user_meta_data, raw_app_meta_data, is_super_admin,
-  confirmation_token, recovery_token, email_change_token_new, email_change
-) values (
-  'aaaaaaaa-1111-0000-0000-000000000007',
-  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-  'carol@apex.edu', crypt('Password123!', gen_salt('bf')),
-  now(), now(), now(),
-  '{"full_name": "Carol Patel", "role": "user"}'::jsonb,
-  '{"provider": "email", "providers": ["email"]}'::jsonb,
-  false, '', '', '', ''
-);
-
--- dave@apex.edu  (student)
-insert into auth.users (
-  id, instance_id, aud, role, email, encrypted_password,
-  email_confirmed_at, created_at, updated_at,
-  raw_user_meta_data, raw_app_meta_data, is_super_admin,
-  confirmation_token, recovery_token, email_change_token_new, email_change
-) values (
-  'aaaaaaaa-1111-0000-0000-000000000008',
-  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-  'dave@apex.edu', crypt('Password123!', gen_salt('bf')),
-  now(), now(), now(),
-  '{"full_name": "Dave Kulkarni", "role": "user"}'::jsonb,
-  '{"provider": "email", "providers": ["email"]}'::jsonb,
-  false, '', '', '', ''
-);
-
--- startup@nexalab.io  (NexaLab – external startup user)
-insert into auth.users (
-  id, instance_id, aud, role, email, encrypted_password,
-  email_confirmed_at, created_at, updated_at,
-  raw_user_meta_data, raw_app_meta_data, is_super_admin,
-  confirmation_token, recovery_token, email_change_token_new, email_change
-) values (
-  'aaaaaaaa-1111-0000-0000-000000000009',
-  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-  'startup@nexalab.io', crypt('Password123!', gen_salt('bf')),
-  now(), now(), now(),
-  '{"full_name": "Nexa Lab", "role": "user"}'::jsonb,
-  '{"provider": "email", "providers": ["email"]}'::jsonb,
-  false, '', '', '', ''
-);
-
--- ============================================================
 -- 3. PROFILES
--- (inserted directly; trigger fires on auth.users insert
---  but we re-upsert here to set correct role/verified_status)
--- ============================================================
-
 insert into profiles (id, email, full_name, role, org_id, verified_status, bio, phone, active_bookings_count)
 values
-  -- admin
   ('aaaaaaaa-1111-0000-0000-000000000001',
    'admin@apex.edu', 'System Admin', 'admin',
    'aaaaaaaa-0000-0000-0000-000000000001', 'verified',
    'Platform administrator for Apex Engineering College LabShare.', '+91-9000000001', 0),
 
-  -- owner1
   ('aaaaaaaa-1111-0000-0000-000000000002',
    'owner1@apex.edu', 'Dr. Rajan Mehta', 'owner',
    'aaaaaaaa-0000-0000-0000-000000000001', 'verified',
    'Head of Electronics & Instrumentation Lab. Manages oscilloscopes and testing kits.', '+91-9000000002', 0),
 
-  -- owner2
   ('aaaaaaaa-1111-0000-0000-000000000003',
    'owner2@apex.edu', 'Prof. Sunita Rao', 'owner',
    'aaaaaaaa-0000-0000-0000-000000000001', 'verified',
    'Head of Digital Fabrication Lab. Manages 3D printers, laser cutters, and GPU workstations.', '+91-9000000003', 0),
 
-  -- manager
   ('aaaaaaaa-1111-0000-0000-000000000004',
    'manager@apex.edu', 'Karan Verma', 'manager',
    'aaaaaaaa-0000-0000-0000-000000000001', 'verified',
    'Lab manager responsible for bookings coordination and resource availability.', '+91-9000000004', 0),
 
-  -- alice (student – verified, active booking)
   ('aaaaaaaa-1111-0000-0000-000000000005',
    'alice@apex.edu', 'Alice Sharma', 'user',
    'aaaaaaaa-0000-0000-0000-000000000001', 'verified',
    'Final-year ECE student working on her capstone project.', '+91-9000000005', 1),
 
-  -- bob (student – verified, returned booking)
   ('aaaaaaaa-1111-0000-0000-000000000006',
    'bob@apex.edu', 'Bob Nair', 'user',
    'aaaaaaaa-0000-0000-0000-000000000001', 'verified',
    'Third-year CS student interested in embedded systems.', '+91-9000000006', 0),
 
-  -- carol (student – verified, waitlisted)
   ('aaaaaaaa-1111-0000-0000-000000000007',
    'carol@apex.edu', 'Carol Patel', 'user',
    'aaaaaaaa-0000-0000-0000-000000000001', 'verified',
    'Second-year ME student working on additive manufacturing research.', '+91-9000000007', 0),
 
-  -- dave (student – verified, cancelled booking)
   ('aaaaaaaa-1111-0000-0000-000000000008',
    'dave@apex.edu', 'Dave Kulkarni', 'user',
    'aaaaaaaa-0000-0000-0000-000000000001', 'verified',
    'First-year student exploring the lab facilities.', '+91-9000000008', 0),
 
-  -- startup (NexaLab – verified, incident booking)
   ('aaaaaaaa-1111-0000-0000-000000000009',
    'startup@nexalab.io', 'Nexa Lab', 'user',
    null, 'verified',
@@ -238,17 +110,12 @@ on conflict (id) do update set
   phone = excluded.phone,
   active_bookings_count = excluded.active_bookings_count;
 
--- ============================================================
--- 4. RESOURCES  (6 resources)
--- ============================================================
-
+-- 4. RESOURCES
 insert into resources (
   id, org_id, owner_id, name, description, category, location,
   image_url, is_active, weekly_hour_cap, max_booking_duration_hours,
   min_notice_hours, advance_booking_days, requires_approval, tags
 ) values
-
--- Resource 1: 3D Printer
 (
   'bbbbbbbb-0000-0000-0000-000000000001',
   'aaaaaaaa-0000-0000-0000-000000000001',
@@ -262,8 +129,6 @@ insert into resources (
   true, 8, 6, 12, 14, false,
   array['3d-printing', 'prototyping', 'fabrication', 'fdm']
 ),
-
--- Resource 2: Laser Cutter
 (
   'bbbbbbbb-0000-0000-0000-000000000002',
   'aaaaaaaa-0000-0000-0000-000000000001',
@@ -277,8 +142,6 @@ insert into resources (
   true, 6, 4, 24, 21, true,
   array['laser', 'cutting', 'engraving', 'fabrication', 'safety-required']
 ),
-
--- Resource 3: Oscilloscope Kit
 (
   'bbbbbbbb-0000-0000-0000-000000000003',
   'aaaaaaaa-0000-0000-0000-000000000001',
@@ -292,8 +155,6 @@ insert into resources (
   true, 6, 4, 4, 30, false,
   array['oscilloscope', 'electronics', 'instrumentation', 'kit']
 ),
-
--- Resource 4: DSLR Camera Kit
 (
   'bbbbbbbb-0000-0000-0000-000000000004',
   'aaaaaaaa-0000-0000-0000-000000000001',
@@ -307,8 +168,6 @@ insert into resources (
   true, 6, 8, 24, 30, true,
   array['camera', 'photography', 'dslr', 'media', 'kit']
 ),
-
--- Resource 5: Seminar Room B
 (
   'bbbbbbbb-0000-0000-0000-000000000005',
   'aaaaaaaa-0000-0000-0000-000000000001',
@@ -322,8 +181,6 @@ insert into resources (
   true, 8, 4, 2, 30, false,
   array['seminar', 'room', 'presentation', 'meeting', 'space']
 ),
-
--- Resource 6: GPU Workstation
 (
   'bbbbbbbb-0000-0000-0000-000000000006',
   'aaaaaaaa-0000-0000-0000-000000000001',
@@ -339,11 +196,7 @@ insert into resources (
   array['gpu', 'ai', 'ml', 'deep-learning', 'hpc', 'workstation']
 );
 
--- ============================================================
 -- 5. RESOURCE REQUIREMENTS
--- ============================================================
-
--- Laser Cutter: Safety Training (mandatory)
 insert into resource_requirements (id, resource_id, type, name, description, is_mandatory) values
 (
   'cccccccc-0000-0000-0000-000000000001',
@@ -361,10 +214,7 @@ insert into resource_requirements (id, resource_id, type, name, description, is_
   'Lab Membership Card',
   'Upload a scan of your active Apex Engineering College Lab Membership Card.',
   true
-);
-
--- GPU Workstation: Approval + Research Proof (mandatory)
-insert into resource_requirements (id, resource_id, type, name, description, is_mandatory) values
+),
 (
   'cccccccc-0000-0000-0000-000000000003',
   'bbbbbbbb-0000-0000-0000-000000000006',
@@ -382,10 +232,7 @@ insert into resource_requirements (id, resource_id, type, name, description, is_
   'Upload a one-page project brief or your faculty advisor''s confirmation letter '
   'confirming your active research project.',
   true
-);
-
--- DSLR Camera Kit: Membership (optional – just advisory)
-insert into resource_requirements (id, resource_id, type, name, description, is_mandatory) values
+),
 (
   'cccccccc-0000-0000-0000-000000000005',
   'bbbbbbbb-0000-0000-0000-000000000004',
@@ -395,119 +242,73 @@ insert into resource_requirements (id, resource_id, type, name, description, is_
   false
 );
 
--- ============================================================
 -- 6. USER CREDENTIALS
--- ============================================================
-
--- Alice has laser safety training (verified)
 insert into user_credentials (
   id, user_id, requirement_id, name, description,
   file_url, file_name, status, reviewed_by, reviewed_at, review_notes
-) values (
+) values
+(
   'dddddddd-0000-0000-0000-000000000001',
   'aaaaaaaa-1111-0000-0000-000000000005',
   'cccccccc-0000-0000-0000-000000000001',
   'Laser Safety Training Certificate',
   'Completed induction session on 2026-09-10.',
-  'credentials/alice/laser_safety_cert.pdf',
-  'laser_safety_cert.pdf',
-  'verified',
-  'aaaaaaaa-1111-0000-0000-000000000003',
-  now() - interval '30 days',
+  'credentials/alice/laser_safety_cert.pdf', 'laser_safety_cert.pdf',
+  'verified', 'aaaaaaaa-1111-0000-0000-000000000003', now() - interval '30 days',
   'Certificate verified. Induction completed with full marks.'
-);
-
--- Alice has lab membership (verified)
-insert into user_credentials (
-  id, user_id, requirement_id, name, description,
-  file_url, file_name, status, reviewed_by, reviewed_at, review_notes
-) values (
+),
+(
   'dddddddd-0000-0000-0000-000000000002',
   'aaaaaaaa-1111-0000-0000-000000000005',
   'cccccccc-0000-0000-0000-000000000002',
   'Lab Membership Card',
   'Active membership for AY 2026-27.',
-  'credentials/alice/lab_membership.pdf',
-  'lab_membership.pdf',
-  'verified',
-  'aaaaaaaa-1111-0000-0000-000000000003',
-  now() - interval '30 days',
+  'credentials/alice/lab_membership.pdf', 'lab_membership.pdf',
+  'verified', 'aaaaaaaa-1111-0000-0000-000000000003', now() - interval '30 days',
   'Membership valid through May 2027.'
-);
-
--- Bob has laser safety training (verified)
-insert into user_credentials (
-  id, user_id, requirement_id, name, description,
-  file_url, file_name, status, reviewed_by, reviewed_at, review_notes
-) values (
+),
+(
   'dddddddd-0000-0000-0000-000000000003',
   'aaaaaaaa-1111-0000-0000-000000000006',
   'cccccccc-0000-0000-0000-000000000001',
   'Laser Safety Training Certificate',
   'Completed induction on 2026-08-15.',
-  'credentials/bob/laser_safety_cert.pdf',
-  'laser_safety_cert.pdf',
-  'verified',
-  'aaaaaaaa-1111-0000-0000-000000000003',
-  now() - interval '60 days',
+  'credentials/bob/laser_safety_cert.pdf', 'laser_safety_cert.pdf',
+  'verified', 'aaaaaaaa-1111-0000-0000-000000000003', now() - interval '60 days',
   'Approved.'
-);
-
--- Bob has lab membership (verified)
-insert into user_credentials (
-  id, user_id, requirement_id, name, description,
-  file_url, file_name, status, reviewed_by, reviewed_at, review_notes
-) values (
+),
+(
   'dddddddd-0000-0000-0000-000000000004',
   'aaaaaaaa-1111-0000-0000-000000000006',
   'cccccccc-0000-0000-0000-000000000002',
   'Lab Membership Card',
   'Active membership.',
-  'credentials/bob/lab_membership.pdf',
-  'lab_membership.pdf',
-  'verified',
-  'aaaaaaaa-1111-0000-0000-000000000003',
-  now() - interval '60 days',
+  'credentials/bob/lab_membership.pdf', 'lab_membership.pdf',
+  'verified', 'aaaaaaaa-1111-0000-0000-000000000003', now() - interval '60 days',
   'Valid.'
-);
-
--- Startup (NexaLab) has GPU pre-approval (verified)
-insert into user_credentials (
-  id, user_id, requirement_id, name, description,
-  file_url, file_name, status, reviewed_by, reviewed_at, review_notes
-) values (
+),
+(
   'dddddddd-0000-0000-0000-000000000005',
   'aaaaaaaa-1111-0000-0000-000000000009',
   'cccccccc-0000-0000-0000-000000000003',
   'GPU Workstation Pre-Approval – NexaLab',
   'Email approval from Prof. Sunita Rao for NexaLab AI training run.',
-  'credentials/startup/gpu_preapproval.pdf',
-  'gpu_preapproval.pdf',
-  'verified',
-  'aaaaaaaa-1111-0000-0000-000000000003',
-  now() - interval '10 days',
+  'credentials/startup/gpu_preapproval.pdf', 'gpu_preapproval.pdf',
+  'verified', 'aaaaaaaa-1111-0000-0000-000000000003', now() - interval '10 days',
   'Approved for a 6-month access window.'
-);
-
--- Startup (NexaLab) has research project proof (verified)
-insert into user_credentials (
-  id, user_id, requirement_id, name, description,
-  file_url, file_name, status, reviewed_by, reviewed_at, review_notes
-) values (
+),
+(
   'dddddddd-0000-0000-0000-000000000006',
   'aaaaaaaa-1111-0000-0000-000000000009',
   'cccccccc-0000-0000-0000-000000000004',
   'NexaLab AI Research Brief',
   'One-page brief for the NexaLab autonomous vehicle perception project.',
-  'credentials/startup/research_brief.pdf',
-  'research_brief.pdf',
-  'verified',
-  'aaaaaaaa-1111-0000-0000-000000000003',
-  now() - interval '10 days',
+  'credentials/startup/research_brief.pdf', 'research_brief.pdf',
+  'verified', 'aaaaaaaa-1111-0000-0000-000000000003', now() - interval '10 days',
   'Research project confirmed as legitimate.'
 );
 
--- Carol: laser safety training is PENDING (not yet reviewed)
+-- Carol: pending review
 insert into user_credentials (
   id, user_id, requirement_id, name, description,
   file_url, file_name, status
@@ -522,13 +323,7 @@ insert into user_credentials (
   'pending'
 );
 
--- ============================================================
--- 7. AVAILABILITY SLOTS  (next 30 days, weekdays 08:00–20:00)
--- ============================================================
--- Generate slots for all 6 resources for the next 30 days.
--- Each slot is a full weekday block; the booking system slices
--- actual bookings within this window.
-
+-- 7. AVAILABILITY SLOTS (next 30 days, weekdays 08:00-20:00 IST)
 do $$
 declare
   v_day date;
@@ -540,7 +335,6 @@ declare
     'bbbbbbbb-0000-0000-0000-000000000005'::uuid,
     'bbbbbbbb-0000-0000-0000-000000000006'::uuid
   ];
-  v_rid uuid;
   v_created_by uuid[] := array[
     'aaaaaaaa-1111-0000-0000-000000000003'::uuid,
     'aaaaaaaa-1111-0000-0000-000000000003'::uuid,
@@ -554,17 +348,15 @@ begin
   for v_day in
     select generate_series(current_date, current_date + interval '30 days', interval '1 day')::date
   loop
-    -- Skip weekends
     if extract(dow from v_day) in (0, 6) then
       continue;
     end if;
     for i in 1..6 loop
-      v_rid := v_resource_ids[i];
       insert into availability_slots (resource_id, starts_at, ends_at, is_recurring, created_by)
       values (
-        v_rid,
-        (v_day || ' 08:00:00+05:30')::timestamptz,
-        (v_day || ' 20:00:00+05:30')::timestamptz,
+        v_resource_ids[i],
+        (v_day::text || ' 08:00:00+05:30')::timestamptz,
+        (v_day::text || ' 20:00:00+05:30')::timestamptz,
         false,
         v_created_by[i]
       )
@@ -574,15 +366,12 @@ begin
 end;
 $$;
 
--- ============================================================
--- 8. BOOKINGS  (various statuses)
--- ============================================================
-
--- B1: Alice – 3D Printer – APPROVED (upcoming, active)
+-- 8. BOOKINGS
+-- B1: Alice - 3D Printer - APPROVED
 insert into bookings (
   id, resource_id, user_id, starts_at, ends_at, status,
   purpose, purpose_category, decision_reason, decided_by, decided_at,
-  priority_score, is_first_time_user, active_bookings_count
+  priority_score, is_first_time_user
 ) values (
   'eeeeeeee-0000-0000-0000-000000000001',
   'bbbbbbbb-0000-0000-0000-000000000001',
@@ -595,10 +384,10 @@ insert into bookings (
   'Project is well-documented; approved for 4-hour session.',
   'aaaaaaaa-1111-0000-0000-000000000003',
   now() - interval '1 day',
-  120, false, 0
+  120, false
 );
 
--- B2: Bob – Oscilloscope Kit – CHECKED_IN (currently in use)
+-- B2: Bob - Oscilloscope Kit - CHECKED_IN
 insert into bookings (
   id, resource_id, user_id, starts_at, ends_at, status,
   purpose, purpose_category, decision_reason, decided_by, decided_at,
@@ -619,7 +408,7 @@ insert into bookings (
   (now() - interval '55 minutes')::timestamptz
 );
 
--- B3: Alice – Laser Cutter – RETURNED (completed last week)
+-- B3: Alice - Laser Cutter - RETURNED
 insert into bookings (
   id, resource_id, user_id, starts_at, ends_at, status,
   purpose, purpose_category, decision_reason, decided_by, decided_at,
@@ -641,7 +430,7 @@ insert into bookings (
   (now() - interval '7 days' + interval '10 hours' + interval '55 minutes')::timestamptz
 );
 
--- B4: Carol – Laser Cutter – WAITLISTED (pending availability + credential review)
+-- B4: Carol - Laser Cutter - WAITLISTED
 insert into bookings (
   id, resource_id, user_id, starts_at, ends_at, status,
   purpose, purpose_category, waitlist_position, priority_score, is_first_time_user,
@@ -661,7 +450,7 @@ insert into bookings (
   now() - interval '2 hours'
 );
 
--- B5: Dave – DSLR Camera Kit – CANCELLED (changed plans)
+-- B5: Dave - DSLR Camera Kit - CANCELLED
 insert into bookings (
   id, resource_id, user_id, starts_at, ends_at, status,
   purpose, purpose_category, priority_score, is_first_time_user,
@@ -681,7 +470,7 @@ insert into bookings (
   'Competition rescheduled to next month; no longer need the kit today.'
 );
 
--- B6: Startup (NexaLab) – GPU Workstation – INCIDENT (damage reported)
+-- B6: NexaLab - GPU Workstation - INCIDENT
 insert into bookings (
   id, resource_id, user_id, starts_at, ends_at, status,
   purpose, purpose_category, decision_reason, decided_by, decided_at,
@@ -702,7 +491,7 @@ insert into bookings (
   (now() - interval '2 days' + interval '8 hours' + interval '5 minutes')::timestamptz
 );
 
--- B7: Bob – Seminar Room B – CLOSED (past event, fully complete)
+-- B7: Bob - Seminar Room B - CLOSED
 insert into bookings (
   id, resource_id, user_id, starts_at, ends_at, status,
   purpose, purpose_category, decision_reason, decided_by, decided_at,
@@ -724,7 +513,7 @@ insert into bookings (
   (now() - interval '5 days' + interval '14 hours' + interval '58 minutes')::timestamptz
 );
 
--- B8: Dave – 3D Printer – PENDING_REVIEW (just submitted)
+-- B8: Dave - 3D Printer - PENDING_REVIEW
 insert into bookings (
   id, resource_id, user_id, starts_at, ends_at, status,
   purpose, purpose_category, priority_score, is_first_time_user
@@ -740,11 +529,7 @@ insert into bookings (
   120, true
 );
 
--- ============================================================
 -- 9. WAITLIST ENTRIES
--- ============================================================
-
--- Carol's waitlist entry tied to booking B4
 insert into waitlist_entries (
   id, resource_id, user_id, booking_id,
   desired_starts_at, desired_ends_at, position
@@ -758,28 +543,19 @@ insert into waitlist_entries (
   1
 );
 
--- ============================================================
 -- 10. CONDITION REPORTS
--- ============================================================
-
--- B2 (Bob – Oscilloscope – checked_in): BEFORE report
 insert into condition_reports (id, booking_id, phase, reported_by, notes, photo_urls)
-values (
+values
+(
   '11111111-cccc-0000-0000-000000000001',
   'eeeeeeee-0000-0000-0000-000000000002',
   'before',
   'aaaaaaaa-1111-0000-0000-000000000006',
   'All four probes are present and undamaged. Screen has a minor scratch (pre-existing, noted by previous user). '
   'Power cable intact. Calibration appears normal. Ready to use.',
-  array[
-    'condition-reports/b2/before_front.jpg',
-    'condition-reports/b2/before_probes.jpg'
-  ]
-);
-
--- B3 (Alice – Laser Cutter – returned): BEFORE and AFTER reports
-insert into condition_reports (id, booking_id, phase, reported_by, notes, photo_urls)
-values (
+  array['condition-reports/b2/before_front.jpg', 'condition-reports/b2/before_probes.jpg']
+),
+(
   '11111111-cccc-0000-0000-000000000002',
   'eeeeeeee-0000-0000-0000-000000000003',
   'before',
@@ -796,11 +572,8 @@ values (
   'Bed cleaned of acrylic debris. Lens inspected – no marks or contamination. '
   'Exhaust filter emptied. Machine left in standby mode. No issues observed during session.',
   array['condition-reports/b3/after_bed.jpg', 'condition-reports/b3/after_lens.jpg']
-);
-
--- B6 (Startup – GPU Workstation – incident): BEFORE report (after return was never done due to incident)
-insert into condition_reports (id, booking_id, phase, reported_by, notes, photo_urls)
-values (
+),
+(
   '11111111-cccc-0000-0000-000000000004',
   'eeeeeeee-0000-0000-0000-000000000006',
   'before',
@@ -808,11 +581,8 @@ values (
   'Both GPUs showing as healthy in nvidia-smi. CPU temps normal at 42°C. '
   'All cooling fans spinning. UPS shows 100% charge. No hardware warnings in system logs.',
   array['condition-reports/b6/before_nvidia_smi.jpg', 'condition-reports/b6/before_temps.jpg']
-);
-
--- B7 (Bob – Seminar Room – closed): BEFORE and AFTER reports
-insert into condition_reports (id, booking_id, phase, reported_by, notes, photo_urls)
-values (
+),
+(
   '11111111-cccc-0000-0000-000000000005',
   'eeeeeeee-0000-0000-0000-000000000007',
   'before',
@@ -831,11 +601,7 @@ values (
   array['condition-reports/b7/after_room.jpg']
 );
 
--- ============================================================
 -- 11. INCIDENTS
--- ============================================================
-
--- Incident on B6: NexaLab GPU workstation – power surge caused GPU 2 to fault
 insert into incidents (
   id, booking_id, resource_id, reported_by,
   type, severity, status,
@@ -843,7 +609,7 @@ insert into incidents (
   ai_summary_draft, ai_summary_reviewed,
   created_at
 ) values (
-  'gggggggg-0000-0000-0000-000000000001',
+  '99999999-0000-0000-0000-000000000001',
   'eeeeeeee-0000-0000-0000-000000000006',
   'bbbbbbbb-0000-0000-0000-000000000006',
   'aaaaaaaa-1111-0000-0000-000000000009',
@@ -862,64 +628,25 @@ insert into incidents (
   now() - interval '2 days' + interval '15 hours'
 );
 
--- ============================================================
--- 12. USAGE STATS
--- ============================================================
-
--- Alice used laser cutter last week (2 hours)
+-- 12. USAGE STATS (week_start uses Monday, matching the widget's weekStartsOn: 1)
 insert into usage_stats (user_id, resource_id, week_start, hours_used, booking_count)
-values (
-  'aaaaaaaa-1111-0000-0000-000000000005',
-  'bbbbbbbb-0000-0000-0000-000000000002',
-  date_trunc('week', current_date - interval '7 days')::date,
-  2.0, 1
-)
+values
+  ('aaaaaaaa-1111-0000-0000-000000000005', 'bbbbbbbb-0000-0000-0000-000000000002',
+   date_trunc('week', current_date - interval '7 days')::date, 2.0, 1),
+  ('aaaaaaaa-1111-0000-0000-000000000006', 'bbbbbbbb-0000-0000-0000-000000000003',
+   date_trunc('week', current_date)::date, 2.0, 1),
+  ('aaaaaaaa-1111-0000-0000-000000000006', 'bbbbbbbb-0000-0000-0000-000000000005',
+   date_trunc('week', current_date - interval '7 days')::date, 2.0, 1),
+  ('aaaaaaaa-1111-0000-0000-000000000009', 'bbbbbbbb-0000-0000-0000-000000000006',
+   date_trunc('week', current_date - interval '7 days')::date, 8.0, 1)
 on conflict (user_id, resource_id, week_start) do update
   set hours_used = excluded.hours_used, booking_count = excluded.booking_count;
 
--- Bob used oscilloscope this week (2 hours so far, session ongoing)
-insert into usage_stats (user_id, resource_id, week_start, hours_used, booking_count)
-values (
-  'aaaaaaaa-1111-0000-0000-000000000006',
-  'bbbbbbbb-0000-0000-0000-000000000003',
-  date_trunc('week', current_date)::date,
-  2.0, 1
-)
-on conflict (user_id, resource_id, week_start) do update
-  set hours_used = excluded.hours_used, booking_count = excluded.booking_count;
-
--- Bob used seminar room last week (2 hours)
-insert into usage_stats (user_id, resource_id, week_start, hours_used, booking_count)
-values (
-  'aaaaaaaa-1111-0000-0000-000000000006',
-  'bbbbbbbb-0000-0000-0000-000000000005',
-  date_trunc('week', current_date - interval '7 days')::date,
-  2.0, 1
-)
-on conflict (user_id, resource_id, week_start) do update
-  set hours_used = excluded.hours_used, booking_count = excluded.booking_count;
-
--- NexaLab used GPU workstation (8 hours, session ended in incident)
-insert into usage_stats (user_id, resource_id, week_start, hours_used, booking_count)
-values (
-  'aaaaaaaa-1111-0000-0000-000000000009',
-  'bbbbbbbb-0000-0000-0000-000000000006',
-  date_trunc('week', current_date - interval '7 days')::date,
-  8.0, 1
-)
-on conflict (user_id, resource_id, week_start) do update
-  set hours_used = excluded.hours_used, booking_count = excluded.booking_count;
-
--- ============================================================
 -- 13. NOTIFICATIONS
--- ============================================================
-
 insert into notifications (id, user_id, type, title, message, entity_type, entity_id, is_read)
 values
-
--- Alice: booking approved
 (
-  'hhhhhhhh-0000-0000-0000-000000000001',
+  '88888888-0000-0000-0000-000000000001',
   'aaaaaaaa-1111-0000-0000-000000000005',
   'booking_approved',
   'Booking Approved – 3D Printer',
@@ -928,10 +655,8 @@ values
   'booking', 'eeeeeeee-0000-0000-0000-000000000001',
   true
 ),
-
--- Alice: credential verified
 (
-  'hhhhhhhh-0000-0000-0000-000000000002',
+  '88888888-0000-0000-0000-000000000002',
   'aaaaaaaa-1111-0000-0000-000000000005',
   'credential_verified',
   'Laser Safety Certificate Verified',
@@ -940,10 +665,8 @@ values
   'credential', 'dddddddd-0000-0000-0000-000000000001',
   true
 ),
-
--- Carol: booking waitlisted
 (
-  'hhhhhhhh-0000-0000-0000-000000000003',
+  '88888888-0000-0000-0000-000000000003',
   'aaaaaaaa-1111-0000-0000-000000000007',
   'booking_waitlisted',
   'Added to Waitlist – Laser Cutter',
@@ -953,10 +676,8 @@ values
   'booking', 'eeeeeeee-0000-0000-0000-000000000004',
   false
 ),
-
--- Dave: booking cancelled
 (
-  'hhhhhhhh-0000-0000-0000-000000000004',
+  '88888888-0000-0000-0000-000000000004',
   'aaaaaaaa-1111-0000-0000-000000000008',
   'booking_cancelled',
   'Booking Cancelled – DSLR Camera Kit',
@@ -965,145 +686,113 @@ values
   'booking', 'eeeeeeee-0000-0000-0000-000000000005',
   false
 ),
-
--- Startup: incident reported (notify owner)
 (
-  'hhhhhhhh-0000-0000-0000-000000000005',
+  '88888888-0000-0000-0000-000000000005',
   'aaaaaaaa-1111-0000-0000-000000000003',
   'incident_reported',
   'Incident Reported: GPU 2 Hardware Fault During Training Run',
   'An incident of type "damage" (severity: high) has been reported for the GPU Workstation '
   'booking by NexaLab. Please review and take action.',
-  'incident', 'gggggggg-0000-0000-0000-000000000001',
+  'incident', '99999999-0000-0000-0000-000000000001',
   false
 ),
-
--- Owner3 / Manager: new booking pending review (Dave's 3D printer request)
 (
-  'hhhhhhhh-0000-0000-0000-000000000006',
+  '88888888-0000-0000-0000-000000000006',
   'aaaaaaaa-1111-0000-0000-000000000003',
   'booking_approved',
   'New Booking Pending Review – 3D Printer',
   'Dave Kulkarni has submitted a new booking request for the Creality Ender 5 Plus 3D Printer '
-  'for 4 hours on ' || (current_date + interval '4 days')::text || '. Please review.',
+  'for 4 hours on ' || (current_date + interval '4 days')::date::text || '. Please review.',
   'booking', 'eeeeeeee-0000-0000-0000-000000000008',
   false
 ),
-
--- Bob: booking reminder (oscilloscope)
 (
-  'hhhhhhhh-0000-0000-0000-000000000007',
+  '88888888-0000-0000-0000-000000000007',
   'aaaaaaaa-1111-0000-0000-000000000006',
   'booking_reminder',
   'Reminder: Return Oscilloscope Kit in 3 Hours',
-  'Your booking for the Tektronix TBS2104 Oscilloscope Kit ends at '
-  || (now() + interval '3 hours')::timestamptz::text ||
-  '. Please ensure you complete your work and return the equipment on time.',
+  'Your booking for the Tektronix TBS2104 Oscilloscope Kit ends in about 3 hours. '
+  'Please ensure you complete your work and return the equipment on time.',
   'booking', 'eeeeeeee-0000-0000-0000-000000000002',
   false
 );
 
--- ============================================================
 -- 14. AUDIT LOG
--- ============================================================
-
 insert into audit_log (actor_id, actor_email, action, entity_type, entity_id, details)
 values
-
--- Booking requested: Alice → 3D Printer
 (
   'aaaaaaaa-1111-0000-0000-000000000005', 'alice@apex.edu',
   'booking_requested', 'booking', 'eeeeeeee-0000-0000-0000-000000000001',
   '{"resource_id": "bbbbbbbb-0000-0000-0000-000000000001", "purpose_category": "project", "priority_score": 120}'::jsonb
 ),
-
--- Booking approved: owner2 → Alice's 3D Printer booking
 (
   'aaaaaaaa-1111-0000-0000-000000000003', 'owner2@apex.edu',
   'booking_approved', 'booking', 'eeeeeeee-0000-0000-0000-000000000001',
   '{"reason": "Project is well-documented; approved for 4-hour session.", "previous_status": "pending_review"}'::jsonb
 ),
-
--- Booking requested: Bob → Oscilloscope
 (
   'aaaaaaaa-1111-0000-0000-000000000006', 'bob@apex.edu',
   'booking_requested', 'booking', 'eeeeeeee-0000-0000-0000-000000000002',
   '{"resource_id": "bbbbbbbb-0000-0000-0000-000000000003", "purpose_category": "coursework", "priority_score": 115}'::jsonb
 ),
-
--- Check-in: Bob → Oscilloscope
 (
   'aaaaaaaa-1111-0000-0000-000000000006', 'bob@apex.edu',
   'booking_checked_in', 'booking', 'eeeeeeee-0000-0000-0000-000000000002',
   '{"notes": "All four probes present and undamaged."}'::jsonb
 ),
-
--- Booking requested: Alice → Laser Cutter
 (
   'aaaaaaaa-1111-0000-0000-000000000005', 'alice@apex.edu',
   'booking_requested', 'booking', 'eeeeeeee-0000-0000-0000-000000000003',
   '{"resource_id": "bbbbbbbb-0000-0000-0000-000000000002", "purpose_category": "project", "priority_score": 125}'::jsonb
 ),
-
--- Booking approved: owner2 → Alice's Laser Cutter booking
 (
   'aaaaaaaa-1111-0000-0000-000000000003', 'owner2@apex.edu',
   'booking_approved', 'booking', 'eeeeeeee-0000-0000-0000-000000000003',
   '{"reason": "All credentials verified. Approved.", "previous_status": "pending_review"}'::jsonb
 ),
-
--- Check-in: Alice → Laser Cutter
 (
   'aaaaaaaa-1111-0000-0000-000000000005', 'alice@apex.edu',
   'booking_checked_in', 'booking', 'eeeeeeee-0000-0000-0000-000000000003',
   '{"notes": "Bed is clean. Lens appears clear."}'::jsonb
 ),
-
--- Return: Alice → Laser Cutter
 (
   'aaaaaaaa-1111-0000-0000-000000000005', 'alice@apex.edu',
   'booking_returned', 'booking', 'eeeeeeee-0000-0000-0000-000000000003',
   '{"notes": "Bed cleaned of acrylic debris. Machine left in standby mode. No issues."}'::jsonb
 ),
-
--- Credential verified: owner2 → Alice laser cert
 (
   'aaaaaaaa-1111-0000-0000-000000000003', 'owner2@apex.edu',
   'credential_verified', 'credential', 'dddddddd-0000-0000-0000-000000000001',
   '{"review_notes": "Certificate verified. Induction completed with full marks."}'::jsonb
 ),
-
--- Incident reported: NexaLab → GPU Workstation
 (
   'aaaaaaaa-1111-0000-0000-000000000009', 'startup@nexalab.io',
-  'incident_reported', 'incident', 'gggggggg-0000-0000-0000-000000000001',
+  'incident_reported', 'incident', '99999999-0000-0000-0000-000000000001',
   '{"type": "damage", "severity": "high", "booking_id": "eeeeeeee-0000-0000-0000-000000000006"}'::jsonb
 ),
-
--- Booking cancelled: Dave → DSLR
 (
   'aaaaaaaa-1111-0000-0000-000000000008', 'dave@apex.edu',
   'booking_cancelled', 'booking', 'eeeeeeee-0000-0000-0000-000000000005',
   '{"reason": "Competition rescheduled to next month."}'::jsonb
 ),
-
--- Booking waitlisted: Carol → Laser Cutter
 (
   'aaaaaaaa-1111-0000-0000-000000000003', 'owner2@apex.edu',
   'booking_waitlisted', 'booking', 'eeeeeeee-0000-0000-0000-000000000004',
   '{"reason": "Safety training certificate is still pending review.", "position": 1}'::jsonb
 ),
-
--- Resource created: GPU Workstation
 (
   'aaaaaaaa-1111-0000-0000-000000000003', 'owner2@apex.edu',
   'resource_created', 'resource', 'bbbbbbbb-0000-0000-0000-000000000006',
   '{"name": "NVIDIA A100 GPU Workstation", "category": "workstation"}'::jsonb
 ),
-
--- User verified: admin → all users (representative log entry)
 (
   'aaaaaaaa-1111-0000-0000-000000000001', 'admin@apex.edu',
   'user_verified', 'profile', 'aaaaaaaa-1111-0000-0000-000000000005',
   '{"verified_status": "verified", "user": "alice@apex.edu"}'::jsonb
 );
+
+-- ============================================================
+-- DRY RUN: nothing is saved. After it passes with no errors,
+-- change the next line to:  commit;
+-- ============================================================
+commit;

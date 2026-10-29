@@ -49,7 +49,7 @@ export default function OwnerDashboardPage() {
       // Recent requests
       const { data: requests } = await supabase
         .from('bookings')
-        .select('id, status, starts_at, ends_at, purpose, created_at, resource:resources(name), user:profiles(full_name, email)')
+        .select('id, status, starts_at, ends_at, purpose, created_at, resource:resources(name), user:profiles!user_id(full_name, email)')
         .in('resource_id', resourceIds)
         .eq('status', 'pending_review')
         .order('created_at', { ascending: true })

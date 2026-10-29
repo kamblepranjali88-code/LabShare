@@ -1,3 +1,11 @@
+-- 002_tables.sql (fixed)
+-- Fix: bookings_no_overlap now uses starts_at / ends_at (the real column names)
+-- Requires the enum types created in 001 (user_role, verified_status, requirement_type,
+-- credential_status, booking_status, condition_phase, incident_type, incident_severity,
+-- incident_status, notification_type, audit_action).
+
+create extension if not exists btree_gist;
+
 -- Organizations
 create table organizations (
   id uuid primary key default gen_random_uuid(),
@@ -128,15 +136,14 @@ create table bookings (
   constraint valid_booking check (ends_at > starts_at)
 );
 
--- Prevent double-booking: only one approved/checked_in booking per resource per time slot
-create extension if not exists btree_gist;
-
-alter table bookings add column time_range tstzrange
-  generated always as (tstzrange(starts_at, ends_at, '[)')) stored;
-
-create unique index bookings_no_overlap
-  on bookings using gist (resource_id, time_range)
-  where status in ('approved', 'checked_in');
+-- Prevent double-booking: one approved/checked_in booking per resource per time range
+alter table bookings
+  add constraint bookings_no_overlap
+  exclude using gist (
+    resource_id with =,
+    tstzrange(starts_at, ends_at, '[)') with &&
+  )
+  where (status in ('approved', 'checked_in'));
 
 -- Waitlist entries
 create table waitlist_entries (
@@ -197,7 +204,7 @@ create table notifications (
   created_at timestamptz default now()
 );
 
--- Audit log (append-only — no UPDATE/DELETE allowed)
+-- Audit log (append-only: no UPDATE/DELETE allowed)
 create table audit_log (
   id uuid primary key default gen_random_uuid(),
   actor_id uuid references profiles(id),
@@ -210,7 +217,7 @@ create table audit_log (
   created_at timestamptz default now()
 );
 
--- Usage stats (materialized per user per resource per week)
+-- Usage stats (per user per resource per week)
 create table usage_stats (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references profiles(id),

@@ -24,17 +24,50 @@ export default function OwnerRequestsPage() {
 
     if (resourceIds.length === 0) { setLoading(false); return }
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('bookings')
       .select(`
         id, status, starts_at, ends_at, purpose, purpose_category, priority_score, decision_reason, created_at, is_first_time_user,
         resource:resources(id, name, location, weekly_hour_cap),
-        user:profiles(id, full_name, email, active_bookings_count, noshow_count, verified_status)
+        user:profiles!user_id(id, full_name, email, active_bookings_count, noshow_count, verified_status)
       `)
       .in('resource_id', resourceIds)
       .in('status', ['pending_review', 'eligibility_check', 'approved', 'waitlisted'])
       .order('priority_score', { ascending: false })
       .order('created_at', { ascending: true })
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
+       if (error) { console.error(error); toast.error(error.message) }
     setRequests(data ?? [])
     setLoading(false)
   }, [])

@@ -50,7 +50,7 @@ export default function CredentialsPage() {
     if (profile?.role === 'manager' || profile?.role === 'admin') {
       const { data: pending } = await supabase
         .from('user_credentials')
-        .select('*, user:profiles(full_name, email), requirement:resource_requirements(name)')
+        .select('*, user:profiles!user_id(full_name, email), requirement:resource_requirements(name)')
         .eq('status', 'pending')
         .order('created_at', { ascending: true })
       setPendingCredentials(pending ?? [])

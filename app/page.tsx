@@ -1,7 +1,40 @@
 import Link from 'next/link'
-import { FlaskConical, ClipboardCheck, BarChart3, ShieldCheck, ArrowRight, Users, Clock, Star } from 'lucide-react'
+import { redirect } from 'next/navigation'
+import {
+  FlaskConical,
+  ClipboardCheck,
+  BarChart3,
+  ShieldCheck,
+  ArrowRight,
+  Users,
+  Star,
+  LogOut,
+} from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
 
-export default function LandingPage() {
+async function signOut() {
+  'use server'
+  const supabase = await createClient()
+  await supabase.auth.signOut()
+  redirect('/')
+}
+
+export default async function LandingPage() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  let displayName = ''
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', user.id)
+      .single()
+    displayName = profile?.full_name || user.email?.split('@')[0] || 'Account'
+  }
+
   return (
     <div className="min-h-screen bg-white">
       {/* Nav */}
@@ -15,12 +48,30 @@ export default function LandingPage() {
             <Link href="/resources" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
               Browse Resources
             </Link>
-            <Link
-              href="/login"
-              className="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Sign In
-            </Link>
+            {user ? (
+              <>
+                <Link href="/dashboard" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                  Dashboard
+                </Link>
+                <span className="hidden sm:inline text-sm font-medium text-gray-900">{displayName}</span>
+                <form action={signOut}>
+                  <button
+                    type="submit"
+                    className="flex items-center gap-1.5 border border-gray-200 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Log out
+                  </button>
+                </form>
+              </>
+            ) : (
+              <Link
+                href="/login"
+                className="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Sign In
+              </Link>
+            )}
           </div>
         </div>
       </nav>
@@ -51,10 +102,10 @@ export default function LandingPage() {
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
-              href="/login"
+              href={user ? '/dashboard' : '/login'}
               className="border border-gray-200 text-gray-700 font-semibold px-8 py-3.5 rounded-xl hover:bg-gray-50 transition-colors"
             >
-              Sign In
+              {user ? 'Go to Dashboard' : 'Sign In'}
             </Link>
           </div>
         </div>
@@ -146,7 +197,7 @@ export default function LandingPage() {
               {
                 step: '03',
                 title: 'Get Approved',
-                description: 'Lab managers review requests, considering fair-use scores and competing bookings. You\'re notified instantly.',
+                description: "Lab managers review requests, considering fair-use scores and competing bookings. You're notified instantly.",
               },
               {
                 step: '04',
@@ -179,10 +230,10 @@ export default function LandingPage() {
           </p>
           <div className="flex items-center justify-center gap-4">
             <Link
-              href="/signup"
+              href={user ? '/dashboard' : '/signup'}
               className="bg-blue-600 text-white font-semibold px-8 py-3.5 rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 flex items-center gap-2"
             >
-              Get started free
+              {user ? 'Go to Dashboard' : 'Get started free'}
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
@@ -201,12 +252,18 @@ export default function LandingPage() {
           <div className="flex items-center gap-2">
             <FlaskConical className="h-5 w-5 text-blue-600" />
             <span className="font-bold text-gray-900">LabShare</span>
-            <span className="text-gray-400 text-sm ml-2">© 2024</span>
+            <span className="text-gray-400 text-sm ml-2">© {new Date().getFullYear()}</span>
           </div>
           <div className="flex items-center gap-6 text-sm text-gray-500">
             <Link href="/resources" className="hover:text-gray-900 transition-colors">Resources</Link>
-            <Link href="/login" className="hover:text-gray-900 transition-colors">Sign In</Link>
-            <Link href="/signup" className="hover:text-gray-900 transition-colors">Sign Up</Link>
+            {user ? (
+              <Link href="/dashboard" className="hover:text-gray-900 transition-colors">Dashboard</Link>
+            ) : (
+              <>
+                <Link href="/login" className="hover:text-gray-900 transition-colors">Sign In</Link>
+                <Link href="/signup" className="hover:text-gray-900 transition-colors">Sign Up</Link>
+              </>
+            )}
           </div>
         </div>
       </footer>
