@@ -1,4 +1,5 @@
 'use client'
+import { Suspense } from 'react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -15,7 +16,7 @@ const schema = z.object({
 })
 type FormData = z.infer<typeof schema>
 
-export default function NewIncidentPage() {
+function NewIncidentForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const bookingId = searchParams.get('booking_id') ?? ''
@@ -46,18 +47,13 @@ export default function NewIncidentPage() {
     }
   }
 
-  const SEVERITY_COLORS: Record<string, string> = {
-    low: 'border-green-300 bg-green-50 text-green-700',
-    medium: 'border-yellow-300 bg-yellow-50 text-yellow-700',
-    high: 'border-orange-300 bg-orange-50 text-orange-700',
-    critical: 'border-red-300 bg-red-50 text-red-700',
-  }
-
   return (
     <div className="max-w-lg mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Report Incident</h1>
-        <p className="text-gray-500 text-sm mt-1">Document damage, misuse or delays for booking {bookingId ? `#${bookingId.slice(0, 8)}` : ''}</p>
+        <p className="text-gray-500 text-sm mt-1">
+          Document damage, misuse or delays{bookingId ? ` for booking #${bookingId.slice(0, 8)}` : ''}
+        </p>
       </div>
 
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
@@ -127,5 +123,17 @@ export default function NewIncidentPage() {
         </div>
       </form>
     </div>
+  )
+}
+
+export default function NewIncidentPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-40">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      </div>
+    }>
+      <NewIncidentForm />
+    </Suspense>
   )
 }
