@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ClipboardList, Clock, CheckCircle, Package, BarChart3 } from 'lucide-react'
 import Link from 'next/link'
 import { formatDateTime } from '@/lib/utils'
+import { UsageChart } from '@/components/dashboard/usage-chart'
 
 export default function OwnerDashboardPage() {
   const [stats, setStats] = useState({ pending: 0, checkedOut: 0, weekBookings: 0, totalResources: 0 })
@@ -141,6 +142,15 @@ export default function OwnerDashboardPage() {
           <p className="font-medium text-gray-900 text-sm group-hover:text-blue-600">My Resources</p>
           <p className="text-xs text-gray-500 mt-0.5">Manage your listed labs and equipment</p>
         </Link>
+      </div>
+
+      {/* Usage Chart */}
+      <div className="bg-white rounded-xl border border-gray-100 p-5">
+        <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-blue-600" /> Weekly Booking Activity
+        </h2>
+        <UsageChart />
+        <p className="text-xs text-gray-400 mt-2">Bookings and hours used per week (last 7 weeks)</p>
       </div>
     </div>
   )
