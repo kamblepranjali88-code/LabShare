@@ -41,7 +41,8 @@ export default async function LandingPage() {
   }
 
   // Real counts from the database (aggregate numbers only, via get_public_stats()).
-  const { data: statsData } = await supabase.rpc('get_public_stats')
+  const { data: statsData, error: statsError } = await supabase.rpc('get_public_stats')
+  if (statsError) console.error('get_public_stats failed:', statsError.message)
   const s = (statsData ?? null) as {
     resources?: number
     organizations?: number
