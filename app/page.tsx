@@ -69,7 +69,7 @@ export default function LandingPage() {
         {/* Badge */}
         <div className="relative z-10 mb-6 flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 text-sm text-blue-300 backdrop-blur-sm">
           <Star className="h-3.5 w-3.5 fill-current" />
-          Code Hack India 2026 · Apex Engineering College Demo
+          Code Hack India 2026 · Bharti Vidyapeeth Deemed To Be University College Of Engineering ,Pune College Demo
         </div>
 
         {/* Headline */}
@@ -156,7 +156,7 @@ export default function LandingPage() {
       <section className="py-20 px-4 max-w-6xl mx-auto">
         <div className="text-center mb-12">
           <p className="text-cyan-400 text-sm font-medium tracking-widest uppercase mb-3">Live Resources</p>
-          <h2 className="text-4xl font-bold text-white">Available at Apex Engineering College</h2>
+          <h2 className="text-4xl font-bold text-white">Available at Bharti Engineering College</h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {RESOURCES.map((r) => (
@@ -226,7 +226,7 @@ export default function LandingPage() {
             Ready to share smarter?
           </h2>
           <p className="text-gray-400 mb-10 text-lg">
-            Join Apex Engineering College&apos;s trusted resource-sharing network.
+            Join Bharti Engineering College&apos;s trusted resource-sharing network.
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <Link

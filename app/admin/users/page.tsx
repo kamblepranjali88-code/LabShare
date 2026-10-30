@@ -2,186 +2,170 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Users, ShieldCheck, ShieldOff, Search } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, Users } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 
-const ROLES = ['user', 'owner', 'manager', 'admin']
+type Status = 'pending' | 'verified' | 'rejected'
+
+interface UserRow {
+  id: string
+  email: string | null
+  full_name: string | null
+  role: string | null
+  verified_status: Status
+  created_at: string
+}
+
+const BADGE: Record<Status, { label: string; color: string }> = {
+  pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-700' },
+  verified: { label: 'Verified', color: 'bg-green-100 text-green-700' },
+  rejected: { label: 'Rejected', color: 'bg-red-100 text-red-700' },
+}
 
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<'all' | 'pending' | 'verified' | 'rejected'>('all')
-  const [updating, setUpdating] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [users, setUsers] = useState<UserRow[]>([])
+  const [filter, setFilter] = useState<Status>('pending')
+  const [busyId, setBusyId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     const supabase = createClient()
-    let query = supabase
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setLoading(false); return }
+
+    const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+    if (me?.role !== 'admin') {
+      setIsAdmin(false)
+      setLoading(false)
+      return
+    }
+    setIsAdmin(true)
+
+    const { data, error } = await supabase
       .from('profiles')
-      .select('*, organization:organizations(name)')
+      .select('id, email, full_name, role, verified_status, created_at')
       .order('created_at', { ascending: false })
-    if (filter !== 'all') query = query.eq('verified_status', filter)
-    const { data } = await query
-    setUsers(data ?? [])
+    if (error) toast.error('Could not load users: ' + error.message)
+    setUsers((data ?? []) as UserRow[])
     setLoading(false)
-  }, [filter])
+  }, [])
 
   useEffect(() => { load() }, [load])
 
-  async function updateUser(id: string, updates: Record<string, string>) {
-    setUpdating(id)
+  async function setStatus(id: string, status: Status) {
+    setBusyId(id)
     const supabase = createClient()
-    const { error } = await supabase.from('profiles').update(updates).eq('id', id)
-    if (error) {
-      toast.error('Update failed: ' + error.message)
-    } else {
-      toast.success('User updated')
-      await load()
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ verified_status: status })
+      .eq('id', id)
+      .select('id')
+    setBusyId(null)
+
+    if (error) { toast.error('Update failed: ' + error.message); return }
+    if (!data || data.length === 0) {
+      toast.error('Nothing changed. You may not have permission to update this profile.')
+      return
     }
-    setUpdating(null)
+    toast.success(`User marked as ${status}`)
+    await load()
   }
 
-  const filtered = users.filter(u =>
-    !search ||
-    u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-    u.email?.toLowerCase().includes(search.toLowerCase())
-  )
-
-  const STATUS_COLORS: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-700',
-    verified: 'bg-green-100 text-green-700',
-    rejected: 'bg-red-100 text-red-700',
+  const counts: Record<Status, number> = {
+    pending: users.filter(u => u.verified_status === 'pending').length,
+    verified: users.filter(u => u.verified_status === 'verified').length,
+    rejected: users.filter(u => u.verified_status === 'rejected').length,
   }
-  const ROLE_COLORS: Record<string, string> = {
-    user: 'bg-gray-100 text-gray-600',
-    owner: 'bg-blue-100 text-blue-700',
-    manager: 'bg-purple-100 text-purple-700',
-    admin: 'bg-red-100 text-red-700',
+  const visible = users.filter(u => u.verified_status === filter)
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-40">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      </div>
+    )
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="max-w-3xl mx-auto bg-white rounded-xl border border-gray-100 p-10 text-center">
+        <Users className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+        <p className="text-gray-700 font-medium">Admins only</p>
+        <p className="text-gray-500 text-sm mt-1">You need an admin account to manage users.</p>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
-          <p className="text-gray-500 text-sm mt-1">Verify accounts, set roles, manage users</p>
-        </div>
-        <span className="text-sm text-gray-500">{filtered.length} user(s)</span>
+    <div className="max-w-3xl mx-auto space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">User verification</h1>
+        <p className="text-gray-500 text-sm mt-1">
+          New accounts start as pending and cannot book until an admin verifies them.
+        </p>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search by name or email…"
-            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div className="flex gap-1">
-          {(['all', 'pending', 'verified', 'rejected'] as const).map(f => (
-            <button key={f} onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize ${
-                filter === f ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
+      <div className="flex gap-1 border-b border-gray-200">
+        {(['pending', 'verified', 'rejected'] as Status[]).map(s => (
+          <button
+            key={s}
+            onClick={() => setFilter(s)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              filter === s ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {BADGE[s].label} ({counts[s]})
+          </button>
+        ))}
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center h-40">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-100 p-10 text-center">
-          <Users className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">No users found</p>
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 text-left">
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">User</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Org</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Role</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Joined</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {filtered.map(u => (
-                  <tr key={u.id} className="hover:bg-gray-50/50">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-gray-900">{u.full_name}</p>
-                      <p className="text-xs text-gray-400">{u.email}</p>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-500">
-                      {u.organization?.name ?? '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <select
-                        defaultValue={u.role}
-                        disabled={updating === u.id}
-                        onChange={e => updateUser(u.id, { role: e.target.value })}
-                        className={`text-xs px-2 py-1 rounded-full font-medium border-0 cursor-pointer focus:ring-2 focus:ring-blue-500 ${ROLE_COLORS[u.role] ?? 'bg-gray-100 text-gray-600'}`}
-                      >
-                        {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                      </select>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${STATUS_COLORS[u.verified_status] ?? 'bg-gray-100 text-gray-600'}`}>
-                        {u.verified_status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-400">{formatDate(u.created_at)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        {u.verified_status !== 'verified' && (
-                          <button
-                            onClick={() => updateUser(u.id, { verified_status: 'verified' })}
-                            disabled={updating === u.id}
-                            className="flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-1 rounded-lg hover:bg-green-200 transition-colors disabled:opacity-50"
-                            title="Verify"
-                          >
-                            <ShieldCheck className="h-3 w-3" /> Verify
-                          </button>
-                        )}
-                        {u.verified_status !== 'rejected' && (
-                          <button
-                            onClick={() => updateUser(u.id, { verified_status: 'rejected' })}
-                            disabled={updating === u.id}
-                            className="flex items-center gap-1 text-xs bg-red-100 text-red-700 px-2 py-1 rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50"
-                            title="Reject"
-                          >
-                            <ShieldOff className="h-3 w-3" /> Reject
-                          </button>
-                        )}
-                        {u.verified_status !== 'pending' && (
-                          <button
-                            onClick={() => updateUser(u.id, { verified_status: 'pending' })}
-                            disabled={updating === u.id}
-                            className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
-                          >
-                            Reset
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div className="space-y-3">
+        {visible.length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-100 p-10 text-center">
+            <Clock className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500">No {filter} users</p>
           </div>
-        </div>
-      )}
+        ) : (
+          visible.map(u => (
+            <div key={u.id} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-medium text-gray-900 text-sm">{u.full_name || 'No name'}</p>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${BADGE[u.verified_status].color}`}>
+                    {BADGE[u.verified_status].label}
+                  </span>
+                  {u.role && u.role !== 'user' && (
+                    <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-600">{u.role}</span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5">{u.email ?? 'no email'}</p>
+                <p className="text-xs text-gray-400 mt-0.5">Signed up {formatDate(u.created_at)}</p>
+              </div>
+              <div className="flex gap-2 flex-shrink-0">
+                {u.verified_status !== 'verified' && (
+                  <button
+                    onClick={() => setStatus(u.id, 'verified')}
+                    disabled={busyId === u.id}
+                    className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+                  >
+                    <CheckCircle className="h-3.5 w-3.5" /> Approve
+                  </button>
+                )}
+                {u.verified_status !== 'rejected' && (
+                  <button
+                    onClick={() => setStatus(u.id, 'rejected')}
+                    disabled={busyId === u.id}
+                    className="flex items-center gap-1.5 bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-red-700 disabled:opacity-50 transition-colors"
+                  >
+                    <XCircle className="h-3.5 w-3.5" /> Reject
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   )
 }
