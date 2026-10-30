@@ -9,15 +9,6 @@ LabShare is a web platform that connects people who own laboratory equipment, fa
 | **Live app** | https://lab-share-pied.vercel.app |
 | **Repository** | https://github.com/kamblepranjali88-code/LabShare |
 
-## Team Elite
-
-| Name | Role |
-|---|---|
-| Pranjali Kamble | Team Leader, Backend and Database, Deployment |
-| Sejal Revanwar | Team Member, Frontend and UI Design |
-| Shraddha Jadhav | Team Member, Testing and Documentation |
-
----
 
 ## The Problem
 
