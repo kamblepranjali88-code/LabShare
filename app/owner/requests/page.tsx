@@ -5,6 +5,8 @@ import { toast } from 'sonner'
 import { formatDateTime, formatDuration, getStatusConfig } from '@/lib/utils'
 import { CheckCircle, XCircle, Clock, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
 
+import { sparkleBurst, celebrate } from '@/lib/effects'
+
 export default function OwnerRequestsPage() {
   const [requests, setRequests] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -13,6 +15,8 @@ export default function OwnerRequestsPage() {
   const [actionModal, setActionModal] = useState<{ id: string; action: 'approve' | 'reject' | 'waitlist' } | null>(null)
   const [reason, setReason] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  // Ref for sparkle position
+  const actionBtnRef = useState<{ x: number; y: number }>({ x: 0, y: 0 })
 
   const load = useCallback(async () => {
     const supabase = createClient()
@@ -89,6 +93,7 @@ export default function OwnerRequestsPage() {
       toast.error(json.error ?? 'Action failed')
     } else {
       toast.success(`Booking ${actionModal.action}d successfully`)
+      if (actionModal.action === 'approve') celebrate()
       setActionModal(null)
       setReason('')
       await load()
@@ -196,7 +201,7 @@ export default function OwnerRequestsPage() {
                     {isPending && (
                       <div className="flex gap-2 pt-1">
                         <button
-                          onClick={() => { setActionModal({ id: req.id, action: 'approve' }); setReason('') }}
+                          onClick={(e) => { sparkleBurst(e.clientX, e.clientY, 8); setActionModal({ id: req.id, action: 'approve' }); setReason('') }}
                           className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-700 transition-colors"
                         >
                           <CheckCircle className="h-3.5 w-3.5" /> Approve

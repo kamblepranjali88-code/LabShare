@@ -52,3 +52,99 @@
   * { @apply border-border; }
   body { @apply bg-background text-foreground; }
 }
+
+/* ───── Aurora Mesh Background ───── */
+.aurora {
+  position: absolute;
+  inset: -20%;
+  z-index: -1;
+  background:
+    radial-gradient(40% 60% at 20% 20%, rgba(79,124,255,0.35), transparent 60%),
+    radial-gradient(50% 50% at 80% 30%, rgba(34,211,238,0.22), transparent 60%),
+    radial-gradient(60% 50% at 50% 90%, rgba(167,139,250,0.28), transparent 60%);
+  filter: blur(60px);
+  animation: auroraShift 20s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes auroraShift {
+  0%   { transform: translate(0, 0) rotate(0deg) scale(1); }
+  50%  { transform: translate(-4%, 3%) rotate(6deg) scale(1.08); }
+  100% { transform: translate(3%, -2%) rotate(-4deg) scale(1.03); }
+}
+
+/* ───── Sparkle Burst Particles ───── */
+.sparkle-burst {
+  position: fixed;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 99999;
+  background: radial-gradient(circle, #fff 0%, #22D3EE 40%, transparent 70%);
+  box-shadow: 0 0 12px #22D3EE, 0 0 24px #4F7CFF;
+  transform: translate(-50%, -50%);
+}
+
+/* ───── Custom Cursor (desktop only) ───── */
+@media (pointer: fine) {
+  body, a, button, [role=button], input, select, textarea {
+    cursor: none !important;
+  }
+}
+
+/* ───── Reduced motion overrides ───── */
+@media (prefers-reduced-motion: reduce) {
+  .aurora { animation: none !important; }
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ───── Focus visible (accessibility) ───── */
+:focus-visible {
+  outline: 2px solid #4F7CFF;
+  outline-offset: 2px;
+}
+
+/* ───── Gradient utility ───── */
+.bg-gradient-brand {
+  background: linear-gradient(135deg, #4F7CFF 0%, #22D3EE 50%, #A78BFA 100%);
+}
+.text-gradient-brand {
+  background: linear-gradient(135deg, #4F7CFF 0%, #22D3EE 50%, #A78BFA 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ───── Card hover lift ───── */
+.card-hover {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 60px -15px rgba(79,124,255,0.25);
+}
+
+/* ───── Glow button ───── */
+.btn-glow {
+  position: relative;
+  overflow: hidden;
+}
+.btn-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,0.25), transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.btn-glow:hover::after {
+  opacity: 1;
+}
+
+/* ───── Dark base for landing page ───── */
+.dark-surface {
+  background: #0a0f1e;
+  color: #e2e8f0;
+}
+

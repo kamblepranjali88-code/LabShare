@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import Link from 'next/link'
 import type { Booking } from '@/types/database'
+import { sparkleBurst, celebrate } from '@/lib/effects'
 
 interface BookingActionsProps {
   booking: Booking
@@ -49,9 +50,10 @@ export function BookingActions({ booking }: BookingActionsProps) {
       }
       toast.success(
         json.waitlist_promoted
-          ? 'Booking cancelled. A waitlisted user has been promoted!'
+          ? 'Booking cancelled — waitlisted user promoted! 🎉'
           : 'Booking cancelled successfully'
       )
+      if (json.waitlist_promoted) celebrate()
       setCancelOpen(false)
       router.refresh()
     } catch {

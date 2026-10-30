@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { useParams, useRouter } from 'next/navigation'
 import { QrCode, Camera, Upload, CheckCircle, Clock } from 'lucide-react'
 import { formatDateTime } from '@/lib/utils'
+import { sparkleBurst, celebrate } from '@/lib/effects'
 
 export default function CheckInPage() {
   const { id } = useParams<{ id: string }>()
@@ -102,6 +103,7 @@ export default function CheckInPage() {
       const json = await res.json()
       if (!res.ok || !json.success) throw new Error(json.error ?? 'Check-in failed')
       toast.success('Checked in successfully!')
+      celebrate()
       router.push(`/bookings/${id}`)
     } catch (err: any) {
       toast.error(err.message)
@@ -227,7 +229,7 @@ export default function CheckInPage() {
         </div>
 
         <button
-          onClick={handleCheckin}
+          onClick={(e) => { sparkleBurst(e.clientX, e.clientY); handleCheckin() }}
           disabled={uploading || notes.trim().length < 10}
           className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
         >

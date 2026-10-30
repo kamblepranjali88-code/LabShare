@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { useParams, useRouter } from 'next/navigation'
 import { Camera, RotateCcw, AlertTriangle } from 'lucide-react'
 import { formatDateTime } from '@/lib/utils'
+import { celebrate } from '@/lib/effects'
 import Link from 'next/link'
 
 export default function ReturnPage() {
@@ -65,6 +66,7 @@ export default function ReturnPage() {
       const json = await res.json()
       if (!res.ok || !json.success) throw new Error(json.error ?? 'Return failed')
       toast.success('Resource returned successfully!')
+      celebrate()
       setReturned(true)
       setReturnedBookingId(id)
     } catch (err: any) {
