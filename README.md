@@ -8,7 +8,6 @@ LabShare is a web platform that connects people who own laboratory equipment, fa
 |---|---|
 | **Live app** | https://lab-share-pied.vercel.app |
 | **Repository** | https://github.com/kamblepranjali88-code/LabShare |
-| **Project report** | PDF submitted with the project |
 
 ## Team Elite
 
